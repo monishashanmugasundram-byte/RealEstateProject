@@ -1,0 +1,67 @@
+<template>
+    <lightning-card title="Properties List (25 Per Page)">
+        <div class="slds-p-around_medium">
+
+            <!-- Filters -->
+            <div class="slds-grid slds-gutters slds-m-bottom_medium">
+                <div class="slds-col">
+                    <lightning-input 
+                        type="number" 
+                        label="Max Rent" 
+                        onchange={handleRentFilter}>
+                    </lightning-input>
+                </div>
+                <div class="slds-col">
+                    <lightning-combobox 
+                        label="Availability Status"
+                        placeholder="Select Status"
+                        options={statusOptions} 
+                        onchange={handleStatusFilter}>
+                    </lightning-combobox>
+                </div>
+                <div class="slds-col">
+                    <lightning-combobox 
+                        label="Furnishing Status"
+                        placeholder="Select Furnishing"
+                        options={furnishOptions} 
+                        onchange={handleFurnishFilter}>
+                    </lightning-combobox>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <template if:true={properties.length}>
+                <lightning-datatable
+                    key-field="Id"
+                    data={properties}
+                    columns={columns}
+                    hide-checkbox-column>
+                </lightning-datatable>
+
+                <!-- Pagination -->
+                <div class="slds-m-top_medium slds-text-align_center">
+                    <lightning-button 
+                        label="Previous" 
+                        onclick={previousPage} 
+                        disabled={isFirstPage}
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <span>Page {currentPage} of {totalPages}</span>
+                    <lightning-button 
+                        label="Next" 
+                        onclick={nextPage} 
+                        disabled={isLastPage}
+                        class="slds-m-left_small">
+                    </lightning-button>
+                </div>
+            </template>
+
+            <template if:false={properties.length}>
+                <p class="slds-text-align_center slds-m-top_medium">
+                    No properties found.
+                </p>
+            </template>
+
+        </div>
+    </lightning-card>
+</template>
