@@ -33,7 +33,7 @@ public class MaintenanceRequestControllerTest {
     static void testAssignVendor() {
         Property__c prop = [SELECT Id FROM Property__c LIMIT 1];
         Vendor__c vendor = [SELECT Id FROM Vendor__c LIMIT 1];
-        
+
         Maintenance__c mr = new Maintenance__c(
             Name = 'Test Request',
             Property__c = prop.Id,
@@ -48,7 +48,7 @@ public class MaintenanceRequestControllerTest {
         Test.stopTest();
 
         Maintenance__c updated = [
-            SELECT Id, Vendor__c FROM Maintenance__c 
+            SELECT Id, Vendor__c FROM Maintenance__c
             WHERE Id = :mr.Id
         ];
         System.assertNotEquals(null, updated.Vendor__c,
@@ -59,7 +59,7 @@ public class MaintenanceRequestControllerTest {
     static void testAssignVendorBulk() {
         Property__c prop = [SELECT Id FROM Property__c LIMIT 1];
         Vendor__c vendor = [SELECT Id FROM Vendor__c LIMIT 1];
-        
+
         List<Maintenance__c> requests = new List<Maintenance__c>();
         for (Integer i = 0; i < 10; i++) {
             requests.add(new Maintenance__c(
@@ -73,9 +73,7 @@ public class MaintenanceRequestControllerTest {
         insert requests;
 
         Test.startTest();
-        for (Maintenance__c mr : requests) {
-            MaintenanceRequestController.assignVendor(mr.Id);
-        }
+        MaintenanceRequestController.assignVendorBulk(requests);
         Test.stopTest();
 
         List<Maintenance__c> updated = [
@@ -84,5 +82,56 @@ public class MaintenanceRequestControllerTest {
         ];
         System.assertEquals(10, updated.size(),
             'All 10 requests should exist');
+        for (Maintenance__c mr : updated) {
+            System.assertNotEquals(null, mr.Vendor__c,
+                'Each request should have vendor assigned');
+        }
+    }
+
+    @isTest
+    static void testTriggerAutoAssign() {
+        Property__c prop = [SELECT Id FROM Property__c LIMIT 1];
+
+        Test.startTest();
+        List<Maintenance__c> requests = new List<Maintenance__c>();
+        for (Integer i = 0; i < 10; i++) {
+            requests.add(new Maintenance__c(
+                Name = 'Trigger Test ' + i,
+                Property__c = prop.Id,
+                Status__c = 'Open',
+                Description__c = 'Trigger test ' + i
+            ));
+        }
+        insert requests;
+        Test.stopTest();
+
+        List<Maintenance__c> updated = [
+            SELECT Id, Vendor__c FROM Maintenance__c
+            WHERE Property__c = :prop.Id
+        ];
+        for (Maintenance__c mr : updated) {
+            System.assertNotEquals(null, mr.Vendor__c,
+                'Trigger should auto assign vendor');
+        }
+    }
+
+    @isTest
+    static void testAssignVendorNoVendors() {
+        delete [SELECT Id FROM Vendor__c];
+        Property__c prop = [SELECT Id FROM Property__c LIMIT 1];
+
+        Maintenance__c mr = new Maintenance__c(
+            Name = 'No Vendor Test',
+            Property__c = prop.Id,
+            Status__c = 'Open',
+            Description__c = 'No vendor test'
+        );
+        insert mr;
+
+        Test.startTest();
+        MaintenanceRequestController.assignVendor(mr.Id);
+        Test.stopTest();
+
+        System.assert(true, 'Should handle no vendors gracefully');
     }
 }

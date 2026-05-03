@@ -1,54 +1,60 @@
 public with sharing class MaintenanceRequestController {
-
-    @AuraEnabled
+    
     public static void assignVendor(Id maintenanceRequestId) {
-        // Get all vendors
         List<Vendor__c> vendors = [
-            SELECT Id, Name 
+            SELECT Id, 
+            (SELECT Id FROM Maintenance__r 
+             WHERE Status__c IN ('Open','In Progress')) 
             FROM Vendor__c
         ];
-
+        
         if (vendors.isEmpty()) return;
-
-        // Count open requests per vendor
-        List<AggregateResult> vendorWorkload = [
-            SELECT Vendor__c, COUNT(Id) requestCount
-            FROM Maintenance__c
-            WHERE Status__c NOT IN ('Completed', 'Cancelled')
-            AND Vendor__c != null
-            GROUP BY Vendor__c
-        ];
-
-        // Map vendor id to workload count
-        Map<Id, Integer> workloadMap = new Map<Id, Integer>();
-        for (Vendor__c v : vendors) {
-            workloadMap.put(v.Id, 0);
-        }
-        for (AggregateResult ar : vendorWorkload) {
-            Id vendorId = (Id)ar.get('Vendor__c');
-            Integer count = (Integer)ar.get('requestCount');
-            workloadMap.put(vendorId, count);
-        }
-
-        // Find vendor with least workload
+        
         Id leastBusyVendor = null;
         Integer minCount = 999999;
-        for (Id vendorId : workloadMap.keySet()) {
-            if (workloadMap.get(vendorId) < minCount) {
-                minCount = workloadMap.get(vendorId);
-                leastBusyVendor = vendorId;
+        
+        for (Vendor__c v : vendors) {
+            Integer count = v.Maintenance__r.size();
+            if (count < minCount) {
+                minCount = count;
+                leastBusyVendor = v.Id;
             }
         }
+        
+        Maintenance__c mr = [
+            SELECT Id, Vendor__c
+            FROM Maintenance__c
+            WHERE Id = :maintenanceRequestId
+        ];
+        mr.Vendor__c = leastBusyVendor;
+        update mr;
+    }
 
-        // Assign vendor to maintenance request
-        if (leastBusyVendor != null) {
-            Maintenance__c mr = [
-                SELECT Id, Vendor__c 
-                FROM Maintenance__c 
-                WHERE Id = :maintenanceRequestId
-            ];
+    public static void assignVendorBulk(
+            List<Maintenance__c> maintenanceRequests) {
+        
+        List<Vendor__c> vendors = [
+            SELECT Id,
+            (SELECT Id FROM Maintenance__r 
+             WHERE Status__c IN ('Open','In Progress'))
+            FROM Vendor__c
+        ];
+        
+        if (vendors.isEmpty()) return;
+        
+        for (Maintenance__c mr : maintenanceRequests) {
+            Id leastBusyVendor = null;
+            Integer minCount = 999999;
+            
+            for (Vendor__c v : vendors) {
+                Integer count = v.Maintenance__r.size();
+                if (count < minCount) {
+                    minCount = count;
+                    leastBusyVendor = v.Id;
+                }
+            }
             mr.Vendor__c = leastBusyVendor;
-            update mr;
         }
+        update maintenanceRequests;
     }
 }
